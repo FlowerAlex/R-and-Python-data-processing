@@ -1,8 +1,10 @@
 library(sqldf)
 library(dplyr)
-Votes <- read.csv("Votes.csv.gz")
-Posts <- read.csv("Posts.csv.gz")
-Users <- read.csv("Users.csv.gz")
+library(data.table)
+
+Votes <- read.csv("Votes.csv")
+Posts <- read.csv("Posts.csv")
+Users <- read.csv("Users.csv")
 
 head(Votes)
 
@@ -21,7 +23,6 @@ ORDER BY UpVotesTab.UpVotes DESC
 LIMIT 10
 "
 )
-res
 
 #Zadanie 1.2
 
@@ -32,8 +33,7 @@ resUpVotesTabNames <- names(upVotesTab)
 
 upVotesTab <- merge(upVotesTab,Posts[Posts$PostTypeId==1,],by.x="PostId", by.y ="Id")
 upVotesTab <- upVotesTab[order(-upVotesTab$UpVotes),]
-res <- subset(upVotesTab,select = c(resUpVotesTabNames,"Title"))
-head(res,10)
+res <- head(subset(upVotesTab,select = c(resUpVotesTabNames,"Title")))
 
 #Zadanie 1.3
 
@@ -49,10 +49,9 @@ upVotesTab <- head(arrange(upVotesTab,desc(upVotesTab$UpVotes)),10)
 
 #zadanie 1.4
 
-
-
-
-
+upVotesTab <- as.data.table(Votes)[VoteTypeId==2,.(UpVotes = .N), by = .(PostId)]
+upVotesTab <- upVotesTab[as.data.table(Posts)[PostTypeId==1,.(Id,Title),],on=.(PostId=Id)][order(-UpVotes)][1:10]
+res <- as.data.frame(upVotesTab)
 
 
 #zadanie 2.1
@@ -93,8 +92,9 @@ res <- head(arrange(PostsUsers,desc(PostsUsers$PostsMeanScore)),10)
 
 #Zadanie 2.4
 
-
-
+res <- unique(as.data.table(Posts)[as.data.table(Users),
+  on = .(OwnerUserId=AccountId)][OwnerUserId!=-1,.(DisplayName,Age,Location,PostsMeanScore = mean(Score),LastPostCreationdate = max(CreationDate)),
+  by = .(OwnerUserId)])[order(-PostsMeanScore)][1:10]
 
 
 #Zadanie 3.1
@@ -156,6 +156,10 @@ res <- arrange(res,desc(res$AnswersNumber))
 
 # Zadanie 3.4
 
+Tab1 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 1],on = .(Id=OwnerUserId)][,.(AnswersNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
+Tab2 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 2],on = .(Id=OwnerUserId)][,.(QuestionsNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
+
+res <- unique(Tab1[Tab2,on=.(Id=Id),nomatch=0])[QuestionsNumber < AnswersNumber,.(DisplayName,QuestionsNumber,AnswersNumber)][order(-AnswersNumber)]
 
 
 #Zadanie 4.1
@@ -206,6 +210,11 @@ res <- rename(res,MostFavoriteQuestion = Title)
 res <- subset(res,select = c("DisplayName","Age","Location","FavoriteTotal","MostFavoriteQuestion","MostFavoriteQuestionLikes"))
 res2 <- head(arrange(res,desc(res$FavoriteTotal)),10)
 
+#Zadanie 4.4
+
+res <- as.data.table(Posts)[PostTypeId==1][as.data.table(Users),
+  on=.(OwnerUserId=Id)][!is.na(FavoriteCount),.(DisplayName,Age,Location,FavoriteTotal = sum(FavoriteCount),MostFavoriteQuestionLikes = max(FavoriteCount),FavoriteCount,Title),
+  by = .(OwnerUserId)][FavoriteCount == MostFavoriteQuestionLikes][,.(DisplayName,Age,Location,FavoriteTotal,MostfavoriteQuestion = Title,MostFavoriteQuestionLikes)][order(-FavoriteTotal)][1:10]
 
 
 #Zadanie 5.1
@@ -282,5 +291,10 @@ res <- bind_cols(res, Difference)
 res <- subset(res, select = c("Id","Title","MaxScore","AcceptedScore","Difference"))
 res2 <- head(res[order(-res$Difference),],10)
 
+#Zadanie 5.4
+
+BestAnswers <- as.data.table(Posts)[PostTypeId==2,.(Id,MaxScore = max(Score)),by=.(ParentId)]
+Questions <- as.data.table(Posts)[PostTypeId==1]
+res <- unique(BestAnswers[Questions,on=.(ParentId=Id)][as.data.table(Posts),on=.(AcceptedAnswerId=Id)])[,.(Id,Title,MaxScore,AcceptedScore = Score,Difference = MaxScore - Score)][order(-Difference)][1:10]
 
 
