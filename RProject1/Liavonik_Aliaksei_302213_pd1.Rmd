@@ -1,3 +1,27 @@
+---
+title: "Liavonik_Aliaksei_302213_pd1"
+author: "Liavonik Aliaksei"
+date: "11 05 2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Wstęp
+
+Niniejszy dokument przedstawia zwęzły opis funkcji realizowanych przy użyciu języka R na przedmiocie Przetwarzanie danych w językach R i Python. W rozwiązaniach zostaną wykorzystane następujące dane:
+
+* https://www.gagolewski.com/resources/data/travel_stackexchange_com/Posts.csv.gz
+* https://www.gagolewski.com/resources/data/travel_stackexchange_com/Users.csv.gz
+* https://www.gagolewski.com/resources/data/travel_stackexchange_com/Votes.csv.gz
+
+## Funkcje
+
+Na początku trzeba wprowadzić dane do środowiska oraz zaimportować niezbędne biblioteki, aby funkcje mogły z nich korzystać:
+
+```
 library(sqldf)
 library(dplyr)
 library(data.table)
@@ -5,7 +29,20 @@ library(data.table)
 Votes <- read.csv("Votes.csv")
 Posts <- read.csv("Posts.csv")
 Users <- read.csv("Users.csv")
+```
 
+Każde zapytanie jest realizowane na 4 sposoby:
+
+- Funkcja "sqldf".
+- Funkcje bazowe w R.
+- Biblioteka "dplyr".
+- Biblioteka .data.table".
+
+Następnie zostanie podana krótka własna interpretacja każdego zapytania, wymagane testy czasowe oraz wynikająca z nich analiza:
+
+1. Z tabeli "Posts" malejąco pobierają się posty okreslonego typu z największą ilością głosów z tabeli "Votes".
+
+```
 Zad1_1 <- function(){
   return (sqldf::sqldf(
     "SELECT UpVotesTab.*, Posts.Title FROM
@@ -23,8 +60,6 @@ LIMIT 10
     )
 }
 
-
-#Zadanie 1.2
 Zad1_2 <- function(){
   VotesWithId2 <- Votes[Votes$VoteTypeId==2,] 
   upVotesTab <- aggregate(VotesWithId2[,'PostId'],by = list(PostId = VotesWithId2$PostId),FUN = length)
@@ -35,10 +70,6 @@ Zad1_2 <- function(){
   upVotesTab <- upVotesTab[order(-upVotesTab$UpVotes),]
   return (head(subset(upVotesTab,select = c(resUpVotesTabNames,"Title"))))
 }
-
-
-#Zadanie 1.3
-
 
 Zad1_3 <- function(){
   
@@ -51,18 +82,27 @@ Zad1_3 <- function(){
   return (head(arrange(upVotesTab,desc(upVotesTab$UpVotes)),10))
 }
 
-
-#zadanie 1.4
-
 Zad1_4 <- function(){
   upVotesTab <- as.data.table(Votes)[VoteTypeId==2,.(UpVotes = .N), by = .(PostId)]
   upVotesTab <- upVotesTab[as.data.table(Posts)[PostTypeId==1,.(Id,Title),],on=.(PostId=Id)][order(-UpVotes)][1:10]
   return (as.data.frame(upVotesTab))
 }
-  
+```
 
+```
+microbenchmark::microbenchmark(
+  sqldf = Zad1_1(),
+  base = Zad1_2(),
+  dplyr = Zad1_3(),
+  data.table = Zad1_4()
+)
+```
 
+![Pomiary czasowe dla 1 zapytania](Zad1.PNG)
 
+2. Pobierane są użytkownicy z tabeli "Users" które mają największe średnie oceny postów z tabeli "Posts". Pobierane tylko dziesięć pierwszych malejąco względem średniej oceny postów.
+
+```
 #zadanie 2.1
 Zad2_1 <- function(){
   return (sqldf::sqldf(
@@ -79,8 +119,6 @@ LIMIT 10
     )
   )
 }
-
-
 
 #Zadanie 2.2
 Zad2_2 <- function(){
@@ -113,8 +151,22 @@ Zad2_4 <- function(){
     on = .(OwnerUserId=AccountId)][OwnerUserId!=-1,.(DisplayName,Age,Location,PostsMeanScore = mean(Score),LastPostCreationdate = max(CreationDate)),
     by = .(OwnerUserId)])[order(-PostsMeanScore)][1:10])
 }  
+```
+```
+microbenchmark::microbenchmark(
+  sqldf = Zad2_1(),
+  base = Zad2_2(),
+  dplyr = Zad2_3(),
+  data.table = Zad2_4()
+)
+```
+
+![Pomiary czasowe dla 2 zapytania](Zad2.PNG)
 
 
+3. Wyszukiwane są użytkownicy, którzy mają większą ilość postów jako odpowiedzi niż postów jako zapytań. Wyświetlane malejąco względem postów jako zapytań.
+
+```
 #Zadanie 3.1
 Zad3_1 <- function(){
   return (sqldf::sqldf(
@@ -182,12 +234,25 @@ Zad3_3 <- function(){
 Zad3_4 <- function(){
   Tab1 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 1],on = .(Id=OwnerUserId)][,.(AnswersNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
   Tab2 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 2],on = .(Id=OwnerUserId)][,.(QuestionsNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
-  
   return (unique(Tab1[Tab2,on=.(Id=Id),nomatch=0])[QuestionsNumber < AnswersNumber,.(DisplayName,QuestionsNumber,AnswersNumber)][order(-AnswersNumber)])
   
 }
+```
 
+```
+microbenchmark::microbenchmark(
+  sqldf = Zad3_1(),
+  base = Zad3_2(),
+  dplyr = Zad3_3(),
+  data.table = Zad3_4()
+)
+```
 
+![Pomiary czasowe dla 3 zapytania](Zad3.PNG)
+
+4. Wyszykiwane są użytkownicy posiadające największą sumę polubień na postach jako pytań wraz z postem, który ma największą ilość polubień. Wybierane są 10 użytkowników z największą sumą polubień malejąco.
+
+```
 #Zadanie 4.1
 Zad4_1 <- function(){
   return (sqldf::sqldf(
@@ -215,10 +280,8 @@ Zad4_2 <- function(){
   PostsUsers <- PostsUsers[!is.na(PostsUsers$FavoriteCount),]
   df1 <- aggregate(FavoriteCount~OwnerUserId,PostsUsers,sum)
   colnames(df1)[2] <- "FavoriteTotal"
-  
   df2 <- aggregate(FavoriteCount~OwnerUserId,PostsUsers,max)
   colnames(df2)[2] <- "MostFavoriteQuestionLikes"
-  
   res <- merge(merge(df1,df2),PostsUsers)
   colnames(res)[which(colnames(res)=="Title")] <- "MostFavoriteQuestion"
   res <- res[res$FavoriteCount == res$MostFavoriteQuestionLikes,]
@@ -231,7 +294,6 @@ Zad4_2 <- function(){
 Zad4_3 <- function(){
   PostsUsers <- inner_join(Posts[Posts$PostTypeId == 1,],Users,by = c("OwnerUserId" = "Id"))
   PostsUsers <- filter(PostsUsers,!is.na(PostsUsers$FavoriteCount))
-  
   res <- group_by(PostsUsers,OwnerUserId)
   res <- summarise(res, FavoriteTotal = sum(FavoriteCount), MostFavoriteQuestionLikes = max(FavoriteCount))
   res <- inner_join(res,PostsUsers,by = c("OwnerUserId" = "OwnerUserId"))
@@ -247,10 +309,25 @@ Zad4_4 <- function(){
   return (as.data.table(Posts)[PostTypeId==1][as.data.table(Users),
     on=.(OwnerUserId=Id)][!is.na(FavoriteCount),.(DisplayName,Age,Location,FavoriteTotal = sum(FavoriteCount),MostFavoriteQuestionLikes = max(FavoriteCount),FavoriteCount,Title),
     by = .(OwnerUserId)][FavoriteCount == MostFavoriteQuestionLikes][,.(DisplayName,Age,Location,FavoriteTotal,MostfavoriteQuestion = Title,MostFavoriteQuestionLikes)][order(-FavoriteTotal)][1:10])
-  
 }
+```
+
+```
+microbenchmark::microbenchmark(
+  sqldf = Zad4_1(),
+  base = Zad4_2(),
+  dplyr = Zad4_3(),
+  data.table = Zad4_4()
+)
+```
+
+![Pomiary czasowe dla 4 zapytania](Zad4.PNG)
 
 
+5. Pobierane zostają 10 pierwszych postów mających największą różnicę pomiędzy maksymalną ilością polubień, którą ma właściciel posta, a oceną tego posta malejąco.
+
+
+```
 #Zadanie 5.1
 Zad5_1 <- function(){
   return (sqldf::sqldf(
@@ -284,11 +361,9 @@ Zad5_2 <- function(){
   BestAnswers <- Posts[Posts$PostTypeId == 2,]
   df1 <- aggregate(Score~ParentId,BestAnswers,max)
   colnames(df1)[2] <- "MaxScore"
-  
   BestAnswers <- merge(df1,BestAnswers, by.x = "ParentId",by.y = "ParentId")
   BestAnswers <- BestAnswers[BestAnswers$MaxScore == BestAnswers$Score,]
   BestAnswers <- subset(BestAnswers,select = c("Id","ParentId","MaxScore"))
-  
   Questions <- Posts[Posts$PostTypeId == 1,]
   PostsQuestions <- merge(BestAnswers,Questions,by.x = "ParentId",by.y = "Id")
   res <- merge(
@@ -296,18 +371,12 @@ Zad5_2 <- function(){
     subset(Posts,select = c("Id","Score")),
     by.x = "AcceptedAnswerId",by.y = "Id")
   res <- merge(res,Posts[,c("Id","AcceptedAnswerId")],by.x = "AcceptedAnswerId",by.y = "AcceptedAnswerId")
-  
   Difference <- res[,c("MaxScore")] - res[,c("Score")]
-  
   res <- cbind(res,Difference)
   colnames(res)[which(colnames(res)=="Score")] <- "AcceptedScore"
-  
-  
-  
   res <- subset(res, select = c("Id","Title","MaxScore","AcceptedScore","Difference"))
   return (head(res[order(-res$Difference),],10))
 }
-
 
 
 # Zadanie 5.3
@@ -316,9 +385,7 @@ Zad5_3 <- function(){
   BestAnswers <- group_by(FilteredPosts,ParentId)
   BestAnswers <- summarise(BestAnswers,MaxScore = max(Score))
   BestAnswers <- inner_join(BestAnswers,FilteredPosts,by = c("ParentId" = "ParentId"))
-  
   Questions <- Posts[Posts$PostTypeId == 1,]
-  
   res <- inner_join(select(BestAnswers,Id,ParentId,MaxScore),Questions,by = c("ParentId" = "Id"))
   res <- select(res,AcceptedAnswerId,MaxScore,Title)
   res <- unique(inner_join(res,Posts[,c("Id","Score")],by = c("AcceptedAnswerId" = "Id")))
@@ -332,57 +399,37 @@ Zad5_3 <- function(){
 }
 
 
-## ZŁY WYNIK, ALE ROZWIĄZANIE MOIM ZDANIEM JEST DOBRE.
 #Zadanie 5.4
 Zad5_4 <- function(){
   BestAnswers <- as.data.table(Posts)[PostTypeId==2,.(Id,MaxScore = max(Score)),by=.(ParentId)]
   Questions <- as.data.table(Posts)[PostTypeId==1]
   return (unique(BestAnswers[Questions,on=.(ParentId=Id)]
                 [as.data.table(Posts),on=.(AcceptedAnswerId=Id)])[,.(Id,Title,MaxScore,AcceptedScore = Score,Difference = MaxScore - Score)][order(-Difference)][1:10])
-  
-  
 }
+```
 
-
-microbenchmark::microbenchmark(
-  sqldf = Zad1_1(),
-  base = Zad1_2(),
-  dplyr = Zad1_3(),
-  data.table = Zad1_4()
-)
-
-microbenchmark::microbenchmark(
-  sqldf = Zad2_1(),
-  base = Zad2_2(),
-  dplyr = Zad2_3(),
-  data.table = Zad2_4()
-)
-
-microbenchmark::microbenchmark(
-  sqldf = Zad3_1(),
-  base = Zad3_2(),
-  dplyr = Zad3_3(),
-  data.table = Zad3_4()
-)
-
-microbenchmark::microbenchmark(
-  sqldf = Zad4_1(),
-  base = Zad4_2(),
-  dplyr = Zad4_3(),
-  data.table = Zad4_4()
-)
-
+```
 microbenchmark::microbenchmark(
   sqldf = Zad5_1(),
   base = Zad5_2(),
   dplyr = Zad5_3(),
   data.table = Zad5_4()
 )
+```
 
+![Pomiary czasowe dla 5 zapytania](Zad5.PNG)
 
+## Ocena czasu wykonania
 
+Z Implementacji funkcji oraz pomiarów czasowych, wykonanych wcześniej można wyciągnąć następujące wnioski:
+1. Rozwiązanie referencyjne za pomocą zapytania SQL daje nie średnie wyniki, ale jest dosyć wygodna przy czytaniu 
+2. Za pomocą funkcji bazowych najtrudniej implementować rozwiązania oraz otrzymywać dobre wyniki czasowe
+3. Przy wykorzystywaniu biblioteki dplyr w większości zapytań dostałem najlepsze wyniki czasowe oraz dosyć czytelny kod
+4. Data.table jest bardzo mocnym i wygodnym narzędziem przy pisaniu zapytań, ale w moich rozwiązaniach moim zdaniem nie dałem rady realizować wszystkie możliwości wydajnościowe. 
 
+## Ocena subjektywna
 
+Po napisaniu wszystkich zapytań doszłem do wniosku, że najwygodniej dla mnie pisać korzystająć z biblioteki dplyr, dlatego że daje bardzo dobre wyniki czasowe oraz jest bardziej podobna do innych języków programowania, a w szczególności do SQLa.
 
 
 
