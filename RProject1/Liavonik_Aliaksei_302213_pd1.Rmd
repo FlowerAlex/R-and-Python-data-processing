@@ -68,7 +68,9 @@ Zad1_2 <- function(){
   
   upVotesTab <- merge(upVotesTab,Posts[Posts$PostTypeId==1,],by.x="PostId", by.y ="Id")
   upVotesTab <- upVotesTab[order(-upVotesTab$UpVotes),]
-  return (head(subset(upVotesTab,select = c(resUpVotesTabNames,"Title"))))
+  res <- head(subset(upVotesTab,select = c(resUpVotesTabNames,"Title")),10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 Zad1_3 <- function(){
@@ -79,7 +81,9 @@ Zad1_3 <- function(){
   
   upVotesTab <- inner_join(upVotesTab,Posts[Posts$PostTypeId==1,],by = c("PostId" = "Id"))
   upVotesTab <- select(upVotesTab,PostId,UpVotes,Title)
-  return (head(arrange(upVotesTab,desc(upVotesTab$UpVotes)),10))
+  res <- as.data.frame(head(arrange(upVotesTab,desc(upVotesTab$UpVotes)),10))
+  row.names(res) <- NULL
+  return (res)
 }
 
 Zad1_4 <- function(){
@@ -103,7 +107,7 @@ microbenchmark::microbenchmark(
 2. Pobierane są użytkownicy z tabeli "Users" które mają największe średnie oceny postów z tabeli "Posts". Pobierane tylko dziesięć pierwszych malejąco względem średniej oceny postów.
 
 ```
-#zadanie 2.1
+#Zadanie 2.1
 Zad2_1 <- function(){
   return (sqldf::sqldf(
     "SELECT Users.DisplayName, Users.Age, Users.Location,
@@ -129,8 +133,9 @@ Zad2_2 <- function(){
   colnames(df2)[2] <- "LastPostCreationDate"
   mergedData <- merge(merge(df1,df2),PostsUsers)
   uniqueMergedData <- unique(subset(mergedData,select = c("DisplayName","Age","Location","PostsMeanScore", "LastPostCreationDate")))
-  return (head(uniqueMergedData[order(-uniqueMergedData$PostsMeanScore),],10))
-  
+  res <- head(uniqueMergedData[order(-uniqueMergedData$PostsMeanScore),],10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 #Zadanie 2.3
@@ -140,16 +145,17 @@ Zad2_3 <- function(){
   PostsUsers <- group_by(PostsUsers,OwnerUserId,DisplayName,Age,Location)
   PostsUsers <- summarise(PostsUsers,PostsMeanScore = mean(Score),LastPostCreationDate = max(CreationDate.x))
   PostsUsers <- subset(PostsUsers,select=c("DisplayName","Age","Location","PostsMeanScore","LastPostCreationDate"))
-  
-  return (head(arrange(PostsUsers,desc(PostsUsers$PostsMeanScore)),10))
+  res <- as.data.frame(head(arrange(PostsUsers,desc(PostsUsers$PostsMeanScore)),10))
+  row.names(res) <- NULL
+  return (res)
   
 }
 
 #Zadanie 2.4
 Zad2_4 <- function(){
-  return (unique(as.data.table(Posts)[as.data.table(Users),
-    on = .(OwnerUserId=AccountId)][OwnerUserId!=-1,.(DisplayName,Age,Location,PostsMeanScore = mean(Score),LastPostCreationdate = max(CreationDate)),
-    by = .(OwnerUserId)])[order(-PostsMeanScore)][1:10])
+  return (as.data.frame(unique(as.data.table(Posts)[as.data.table(Users),
+    on = .(OwnerUserId=AccountId)][OwnerUserId!=-1,.(DisplayName,Age,Location,PostsMeanScore = mean(Score),LastPostCreationDate = max(CreationDate)),
+    by = .(OwnerUserId)])[,.(DisplayName,Age,Location,PostsMeanScore,LastPostCreationDate)][order(-PostsMeanScore)][1:10]))
 }  
 ```
 ```
@@ -207,7 +213,11 @@ Zad3_2 <- function(){
   
   res <- unique(merge(Tab1,Tab2))
   res <- res[res$QuestionsNumber < res$AnswersNumber,]
-  return (res[order(-res$AnswersNumber),])
+  res <- res[order(-res$AnswersNumber),]
+  res <- subset(res,select = c("DisplayName","QuestionsNumber","AnswersNumber"))
+  row.names(res) <- NULL
+  
+  return (res)
 }
 
 
@@ -226,7 +236,7 @@ Zad3_3 <- function(){
   res <- inner_join(Tab1,Tab2, by="Id")
   res <- filter(res,QuestionsNumber < AnswersNumber)
   res <- subset(res,select = c("DisplayName", "QuestionsNumber", "AnswersNumber"))
-  return (arrange(res,desc(res$AnswersNumber)))
+  return (as.data.frame(arrange(res,desc(res$AnswersNumber))))
 }
 
 
@@ -234,8 +244,8 @@ Zad3_3 <- function(){
 Zad3_4 <- function(){
   Tab1 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 1],on = .(Id=OwnerUserId)][,.(AnswersNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
   Tab2 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 2],on = .(Id=OwnerUserId)][,.(QuestionsNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
-  return (unique(Tab1[Tab2,on=.(Id=Id),nomatch=0])[QuestionsNumber < AnswersNumber,.(DisplayName,QuestionsNumber,AnswersNumber)][order(-AnswersNumber)])
   
+  return (as.data.frame(unique(Tab1[Tab2,on=.(Id=Id),nomatch=0])[QuestionsNumber < AnswersNumber,.(DisplayName,QuestionsNumber,AnswersNumber)][order(-AnswersNumber)]))
 }
 ```
 
@@ -280,13 +290,17 @@ Zad4_2 <- function(){
   PostsUsers <- PostsUsers[!is.na(PostsUsers$FavoriteCount),]
   df1 <- aggregate(FavoriteCount~OwnerUserId,PostsUsers,sum)
   colnames(df1)[2] <- "FavoriteTotal"
+  
   df2 <- aggregate(FavoriteCount~OwnerUserId,PostsUsers,max)
   colnames(df2)[2] <- "MostFavoriteQuestionLikes"
+  
   res <- merge(merge(df1,df2),PostsUsers)
   colnames(res)[which(colnames(res)=="Title")] <- "MostFavoriteQuestion"
   res <- res[res$FavoriteCount == res$MostFavoriteQuestionLikes,]
   res <- unique(subset(res,select = c("DisplayName","Age","Location","FavoriteTotal","MostFavoriteQuestion","MostFavoriteQuestionLikes")))
-  return (head(res[order(-res$FavoriteTotal),],10))
+  res <- head(res[order(-res$FavoriteTotal),],10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 
@@ -294,21 +308,25 @@ Zad4_2 <- function(){
 Zad4_3 <- function(){
   PostsUsers <- inner_join(Posts[Posts$PostTypeId == 1,],Users,by = c("OwnerUserId" = "Id"))
   PostsUsers <- filter(PostsUsers,!is.na(PostsUsers$FavoriteCount))
+  
   res <- group_by(PostsUsers,OwnerUserId)
   res <- summarise(res, FavoriteTotal = sum(FavoriteCount), MostFavoriteQuestionLikes = max(FavoriteCount))
   res <- inner_join(res,PostsUsers,by = c("OwnerUserId" = "OwnerUserId"))
   res <- filter(res,FavoriteCount == MostFavoriteQuestionLikes)
   res <- rename(res,MostFavoriteQuestion = Title)
   res <- subset(res,select = c("DisplayName","Age","Location","FavoriteTotal","MostFavoriteQuestion","MostFavoriteQuestionLikes"))
-  return (head(arrange(res,desc(res$FavoriteTotal)),10))
+  res <- as.data.frame(head(arrange(res,desc(res$FavoriteTotal)),10))
+  row.names(res) <- NULL
+  return (res)
 }
 
 
 #Zadanie 4.4
 Zad4_4 <- function(){
-  return (as.data.table(Posts)[PostTypeId==1][as.data.table(Users),
+  return (as.data.frame(as.data.table(Posts)[PostTypeId==1][as.data.table(Users),
     on=.(OwnerUserId=Id)][!is.na(FavoriteCount),.(DisplayName,Age,Location,FavoriteTotal = sum(FavoriteCount),MostFavoriteQuestionLikes = max(FavoriteCount),FavoriteCount,Title),
-    by = .(OwnerUserId)][FavoriteCount == MostFavoriteQuestionLikes][,.(DisplayName,Age,Location,FavoriteTotal,MostfavoriteQuestion = Title,MostFavoriteQuestionLikes)][order(-FavoriteTotal)][1:10])
+    by = .(OwnerUserId)][FavoriteCount == MostFavoriteQuestionLikes][,.(DisplayName,Age,Location,FavoriteTotal,MostFavoriteQuestion = Title,MostFavoriteQuestionLikes)][order(-FavoriteTotal)][1:10]))
+  
 }
 ```
 
@@ -361,9 +379,11 @@ Zad5_2 <- function(){
   BestAnswers <- Posts[Posts$PostTypeId == 2,]
   df1 <- aggregate(Score~ParentId,BestAnswers,max)
   colnames(df1)[2] <- "MaxScore"
+  
   BestAnswers <- merge(df1,BestAnswers, by.x = "ParentId",by.y = "ParentId")
   BestAnswers <- BestAnswers[BestAnswers$MaxScore == BestAnswers$Score,]
   BestAnswers <- subset(BestAnswers,select = c("Id","ParentId","MaxScore"))
+  
   Questions <- Posts[Posts$PostTypeId == 1,]
   PostsQuestions <- merge(BestAnswers,Questions,by.x = "ParentId",by.y = "Id")
   res <- merge(
@@ -371,13 +391,19 @@ Zad5_2 <- function(){
     subset(Posts,select = c("Id","Score")),
     by.x = "AcceptedAnswerId",by.y = "Id")
   res <- merge(res,Posts[,c("Id","AcceptedAnswerId")],by.x = "AcceptedAnswerId",by.y = "AcceptedAnswerId")
+  
   Difference <- res[,c("MaxScore")] - res[,c("Score")]
+  
   res <- cbind(res,Difference)
   colnames(res)[which(colnames(res)=="Score")] <- "AcceptedScore"
+  
+  
+  
   res <- subset(res, select = c("Id","Title","MaxScore","AcceptedScore","Difference"))
-  return (head(res[order(-res$Difference),],10))
+  res <- head(res[order(-res$Difference),],10)
+  row.names(res) <- NULL
+  return (res)
 }
-
 
 # Zadanie 5.3
 Zad5_3 <- function(){
@@ -385,7 +411,9 @@ Zad5_3 <- function(){
   BestAnswers <- group_by(FilteredPosts,ParentId)
   BestAnswers <- summarise(BestAnswers,MaxScore = max(Score))
   BestAnswers <- inner_join(BestAnswers,FilteredPosts,by = c("ParentId" = "ParentId"))
+  
   Questions <- Posts[Posts$PostTypeId == 1,]
+  
   res <- inner_join(select(BestAnswers,Id,ParentId,MaxScore),Questions,by = c("ParentId" = "Id"))
   res <- select(res,AcceptedAnswerId,MaxScore,Title)
   res <- unique(inner_join(res,Posts[,c("Id","Score")],by = c("AcceptedAnswerId" = "Id")))
@@ -395,16 +423,15 @@ Zad5_3 <- function(){
   res <- rename(res,AcceptedScore = Score)
   res <- bind_cols(res, Difference)
   res <- subset(res, select = c("Id","Title","MaxScore","AcceptedScore","Difference"))
-  return (head(res[order(-res$Difference),],10))
+  return (as.data.frame(head(res[order(-res$Difference),],10)))
 }
-
 
 #Zadanie 5.4
 Zad5_4 <- function(){
-  BestAnswers <- as.data.table(Posts)[PostTypeId==2,.(Id,MaxScore = max(Score)),by=.(ParentId)]
+  BestAnswers <- as.data.table(Posts)[PostTypeId==2,.(Id = head(Id,1),MaxScore = max(Score)),by=.(ParentId)]
   Questions <- as.data.table(Posts)[PostTypeId==1]
-  return (unique(BestAnswers[Questions,on=.(ParentId=Id)]
-                [as.data.table(Posts),on=.(AcceptedAnswerId=Id)])[,.(Id,Title,MaxScore,AcceptedScore = Score,Difference = MaxScore - Score)][order(-Difference)][1:10])
+  return (as.data.frame(BestAnswers[Questions,on=.(ParentId=Id)]
+                [as.data.table(Posts),on=.(AcceptedAnswerId=Id)][,.(Id = ParentId,Title,MaxScore,AcceptedScore = i.Score,Difference = MaxScore - i.Score)][order(-Difference)][1:10]))
 }
 ```
 
@@ -419,17 +446,47 @@ microbenchmark::microbenchmark(
 
 ![Pomiary czasowe dla 5 zapytania](Zad5.PNG)
 
+## Sprawdzanie poprawności zapytań
+
+Rownoważność zapytań została testowana za pomocą komendy all.equal w następujący sposób:
+
+```
+all.equal(Zad1_1(), Zad1_2(), ignore.col.order = TRUE)
+all.equal(Zad1_1(), Zad1_3(), ignore.col.order = TRUE)
+all.equal(Zad1_1(), Zad1_4(), ignore.col.order = TRUE)
+
+all.equal(Zad2_1(), Zad2_2(), ignore.col.order = TRUE)
+all.equal(Zad2_1(), Zad2_3(), ignore.col.order = TRUE)
+all.equal(Zad2_1(), Zad2_4(), ignore.col.order = TRUE)
+
+all.equal(Zad3_1(), Zad3_2(), ignore.col.order = TRUE)
+all.equal(Zad3_1(), Zad3_3(), ignore.col.order = TRUE)
+all.equal(Zad3_1(), Zad3_4(), ignore.col.order = TRUE)
+
+all.equal(Zad4_1(), Zad4_2(), ignore.col.order = TRUE)
+all.equal(Zad4_1(), Zad4_3(), ignore.col.order = TRUE)
+all.equal(Zad4_1(), Zad4_4(), ignore.col.order = TRUE)
+
+all.equal(Zad5_1(), Zad5_2(), ignore.col.order = TRUE)
+all.equal(Zad5_1(), Zad5_3(), ignore.col.order = TRUE)
+all.equal(Zad5_1(), Zad5_4(), ignore.col.order = TRUE)
+```
+
+Dla wygodności dodany jest argument do ignorowania porządku kolumn, ale każde z zapytań robi to w dobrym pożądku. Wynik wygląda następująco:
+
+![Wywoływanie testów do równoważności](equalTests.PNG)
+
+Nie udało mi się dopracować zapytanie 3.4 ponieważ nie znalazłem różnicy w odpowiedzi referencyjnej, a swoją. Pozostałe testy przeszły pomyślnie. 
+
 ## Ocena czasu wykonania
 
-Z Implementacji funkcji oraz pomiarów czasowych, wykonanych wcześniej można wyciągnąć następujące wnioski:
+Z implementacji funkcji oraz pomiarów czasowych, wykonanych wcześniej można wyciągnąć następujące wnioski:
 1. Rozwiązanie referencyjne za pomocą zapytania SQL daje nie średnie wyniki, ale jest dosyć wygodna przy czytaniu 
 2. Za pomocą funkcji bazowych najtrudniej implementować rozwiązania oraz otrzymywać dobre wyniki czasowe
 3. Przy wykorzystywaniu biblioteki dplyr w większości zapytań dostałem najlepsze wyniki czasowe oraz dosyć czytelny kod
 4. Data.table jest bardzo mocnym i wygodnym narzędziem przy pisaniu zapytań, ale w moich rozwiązaniach moim zdaniem nie dałem rady realizować wszystkie możliwości wydajnościowe. 
 
-## Ocena subjektywna
-
-Po napisaniu wszystkich zapytań doszłem do wniosku, że najwygodniej dla mnie pisać korzystająć z biblioteki dplyr, dlatego że daje bardzo dobre wyniki czasowe oraz jest bardziej podobna do innych języków programowania, a w szczególności do SQLa.
+Po napisaniu wszystkich zapytań doszłem do wniosku, że najwygodniej dla mnie korzystająć z biblioteki dplyr, dlatego że daje ona bardzo dobre wyniki czasowe i czytanie kodu jest bardzo przejrzyste.
 
 
 

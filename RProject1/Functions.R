@@ -33,7 +33,9 @@ Zad1_2 <- function(){
   
   upVotesTab <- merge(upVotesTab,Posts[Posts$PostTypeId==1,],by.x="PostId", by.y ="Id")
   upVotesTab <- upVotesTab[order(-upVotesTab$UpVotes),]
-  return (head(subset(upVotesTab,select = c(resUpVotesTabNames,"Title"))))
+  res <- head(subset(upVotesTab,select = c(resUpVotesTabNames,"Title")),10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 
@@ -48,7 +50,9 @@ Zad1_3 <- function(){
   
   upVotesTab <- inner_join(upVotesTab,Posts[Posts$PostTypeId==1,],by = c("PostId" = "Id"))
   upVotesTab <- select(upVotesTab,PostId,UpVotes,Title)
-  return (head(arrange(upVotesTab,desc(upVotesTab$UpVotes)),10))
+  res <- as.data.frame(head(arrange(upVotesTab,desc(upVotesTab$UpVotes)),10))
+  row.names(res) <- NULL
+  return (res)
 }
 
 
@@ -91,8 +95,9 @@ Zad2_2 <- function(){
   colnames(df2)[2] <- "LastPostCreationDate"
   mergedData <- merge(merge(df1,df2),PostsUsers)
   uniqueMergedData <- unique(subset(mergedData,select = c("DisplayName","Age","Location","PostsMeanScore", "LastPostCreationDate")))
-  return (head(uniqueMergedData[order(-uniqueMergedData$PostsMeanScore),],10))
-  
+  res <- head(uniqueMergedData[order(-uniqueMergedData$PostsMeanScore),],10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 #Zadanie 2.3
@@ -102,16 +107,17 @@ Zad2_3 <- function(){
   PostsUsers <- group_by(PostsUsers,OwnerUserId,DisplayName,Age,Location)
   PostsUsers <- summarise(PostsUsers,PostsMeanScore = mean(Score),LastPostCreationDate = max(CreationDate.x))
   PostsUsers <- subset(PostsUsers,select=c("DisplayName","Age","Location","PostsMeanScore","LastPostCreationDate"))
-  
-  return (head(arrange(PostsUsers,desc(PostsUsers$PostsMeanScore)),10))
+  res <- as.data.frame(head(arrange(PostsUsers,desc(PostsUsers$PostsMeanScore)),10))
+  row.names(res) <- NULL
+  return (res)
   
 }
 
 #Zadanie 2.4
 Zad2_4 <- function(){
-  return (unique(as.data.table(Posts)[as.data.table(Users),
-    on = .(OwnerUserId=AccountId)][OwnerUserId!=-1,.(DisplayName,Age,Location,PostsMeanScore = mean(Score),LastPostCreationdate = max(CreationDate)),
-    by = .(OwnerUserId)])[order(-PostsMeanScore)][1:10])
+  return (as.data.frame(unique(as.data.table(Posts)[as.data.table(Users),
+    on = .(OwnerUserId=AccountId)][OwnerUserId!=-1,.(DisplayName,Age,Location,PostsMeanScore = mean(Score),LastPostCreationDate = max(CreationDate)),
+    by = .(OwnerUserId)])[,.(DisplayName,Age,Location,PostsMeanScore,LastPostCreationDate)][order(-PostsMeanScore)][1:10]))
 }  
 
 
@@ -155,7 +161,11 @@ Zad3_2 <- function(){
   
   res <- unique(merge(Tab1,Tab2))
   res <- res[res$QuestionsNumber < res$AnswersNumber,]
-  return (res[order(-res$AnswersNumber),])
+  res <- res[order(-res$AnswersNumber),]
+  res <- subset(res,select = c("DisplayName","QuestionsNumber","AnswersNumber"))
+  row.names(res) <- NULL
+  
+  return (res)
 }
 
 
@@ -174,17 +184,16 @@ Zad3_3 <- function(){
   res <- inner_join(Tab1,Tab2, by="Id")
   res <- filter(res,QuestionsNumber < AnswersNumber)
   res <- subset(res,select = c("DisplayName", "QuestionsNumber", "AnswersNumber"))
-  return (arrange(res,desc(res$AnswersNumber)))
+  return (as.data.frame(arrange(res,desc(res$AnswersNumber))))
 }
 
 
-# Zadanie 3.4
+# Zadanie 3.4 ZŁA
 Zad3_4 <- function(){
   Tab1 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 1],on = .(Id=OwnerUserId)][,.(AnswersNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
   Tab2 <- unique(as.data.table(Users)[as.data.table(Posts)[PostTypeId == 2],on = .(Id=OwnerUserId)][,.(QuestionsNumber = length(DisplayName),DisplayName,Id),by = .(Id)])
   
-  return (unique(Tab1[Tab2,on=.(Id=Id),nomatch=0])[QuestionsNumber < AnswersNumber,.(DisplayName,QuestionsNumber,AnswersNumber)][order(-AnswersNumber)])
-  
+  return (as.data.frame(unique(Tab1[Tab2,on=.(Id=Id),nomatch=0])[QuestionsNumber < AnswersNumber,.(DisplayName,QuestionsNumber,AnswersNumber)][order(-AnswersNumber)]))
 }
 
 
@@ -223,7 +232,9 @@ Zad4_2 <- function(){
   colnames(res)[which(colnames(res)=="Title")] <- "MostFavoriteQuestion"
   res <- res[res$FavoriteCount == res$MostFavoriteQuestionLikes,]
   res <- unique(subset(res,select = c("DisplayName","Age","Location","FavoriteTotal","MostFavoriteQuestion","MostFavoriteQuestionLikes")))
-  return (head(res[order(-res$FavoriteTotal),],10))
+  res <- head(res[order(-res$FavoriteTotal),],10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 
@@ -238,15 +249,17 @@ Zad4_3 <- function(){
   res <- filter(res,FavoriteCount == MostFavoriteQuestionLikes)
   res <- rename(res,MostFavoriteQuestion = Title)
   res <- subset(res,select = c("DisplayName","Age","Location","FavoriteTotal","MostFavoriteQuestion","MostFavoriteQuestionLikes"))
-  return (head(arrange(res,desc(res$FavoriteTotal)),10))
+  res <- as.data.frame(head(arrange(res,desc(res$FavoriteTotal)),10))
+  row.names(res) <- NULL
+  return (res)
 }
 
 
 #Zadanie 4.4
 Zad4_4 <- function(){
-  return (as.data.table(Posts)[PostTypeId==1][as.data.table(Users),
+  return (as.data.frame(as.data.table(Posts)[PostTypeId==1][as.data.table(Users),
     on=.(OwnerUserId=Id)][!is.na(FavoriteCount),.(DisplayName,Age,Location,FavoriteTotal = sum(FavoriteCount),MostFavoriteQuestionLikes = max(FavoriteCount),FavoriteCount,Title),
-    by = .(OwnerUserId)][FavoriteCount == MostFavoriteQuestionLikes][,.(DisplayName,Age,Location,FavoriteTotal,MostfavoriteQuestion = Title,MostFavoriteQuestionLikes)][order(-FavoriteTotal)][1:10])
+    by = .(OwnerUserId)][FavoriteCount == MostFavoriteQuestionLikes][,.(DisplayName,Age,Location,FavoriteTotal,MostFavoriteQuestion = Title,MostFavoriteQuestionLikes)][order(-FavoriteTotal)][1:10]))
   
 }
 
@@ -305,7 +318,9 @@ Zad5_2 <- function(){
   
   
   res <- subset(res, select = c("Id","Title","MaxScore","AcceptedScore","Difference"))
-  return (head(res[order(-res$Difference),],10))
+  res <- head(res[order(-res$Difference),],10)
+  row.names(res) <- NULL
+  return (res)
 }
 
 
@@ -328,19 +343,16 @@ Zad5_3 <- function(){
   res <- rename(res,AcceptedScore = Score)
   res <- bind_cols(res, Difference)
   res <- subset(res, select = c("Id","Title","MaxScore","AcceptedScore","Difference"))
-  return (head(res[order(-res$Difference),],10))
+  return (as.data.frame(head(res[order(-res$Difference),],10)))
 }
 
 
-## ZŁY WYNIK, ALE ROZWIĄZANIE MOIM ZDANIEM JEST DOBRE.
 #Zadanie 5.4
 Zad5_4 <- function(){
-  BestAnswers <- as.data.table(Posts)[PostTypeId==2,.(Id,MaxScore = max(Score)),by=.(ParentId)]
+  BestAnswers <- as.data.table(Posts)[PostTypeId==2,.(Id = head(Id,1),MaxScore = max(Score)),by=.(ParentId)]
   Questions <- as.data.table(Posts)[PostTypeId==1]
-  return (unique(BestAnswers[Questions,on=.(ParentId=Id)]
-                [as.data.table(Posts),on=.(AcceptedAnswerId=Id)])[,.(Id,Title,MaxScore,AcceptedScore = Score,Difference = MaxScore - Score)][order(-Difference)][1:10])
-  
-  
+  return (as.data.frame(BestAnswers[Questions,on=.(ParentId=Id)]
+                [as.data.table(Posts),on=.(AcceptedAnswerId=Id)][,.(Id = ParentId,Title,MaxScore,AcceptedScore = i.Score,Difference = MaxScore - i.Score)][order(-Difference)][1:10]))
 }
 
 
@@ -378,6 +390,29 @@ microbenchmark::microbenchmark(
   dplyr = Zad5_3(),
   data.table = Zad5_4()
 )
+all.equal(Zad1_1(), Zad1_2(), ignore.col.order = TRUE)
+all.equal(Zad1_1(), Zad1_3(), ignore.col.order = TRUE)
+all.equal(Zad1_1(), Zad1_4(), ignore.col.order = TRUE)
+
+all.equal(Zad2_1(), Zad2_2(), ignore.col.order = TRUE)
+all.equal(Zad2_1(), Zad2_3(), ignore.col.order = TRUE)
+all.equal(Zad2_1(), Zad2_4(), ignore.col.order = TRUE)
+
+all.equal(Zad3_1(), Zad3_2(), ignore.col.order = TRUE)
+all.equal(Zad3_1(), Zad3_3(), ignore.col.order = TRUE)
+all.equal(Zad3_1(), Zad3_4(), ignore.col.order = TRUE)
+
+all.equal(Zad4_1(), Zad4_2(), ignore.col.order = TRUE)
+all.equal(Zad4_1(), Zad4_3(), ignore.col.order = TRUE)
+all.equal(Zad4_1(), Zad4_4(), ignore.col.order = TRUE)
+
+all.equal(Zad5_1(), Zad5_2(), ignore.col.order = TRUE)
+all.equal(Zad5_1(), Zad5_3(), ignore.col.order = TRUE)
+all.equal(Zad5_1(), Zad5_4(), ignore.col.order = TRUE)
+
+
+
+
 
 
 
